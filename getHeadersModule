@@ -1,0 +1,107 @@
+Sub getHeaders()
+Dim wb As Workbook
+Dim rowCopy As Range
+Dim FullYear, YearCt, MonthCt, currRow As Integer
+Dim errStr, MonthStr, StateAbbrev, State As String
+Dim singleFiles, xlsx As Boolean
+
+
+Dim Files(1 To 2) As String
+Files(1) = "2501"
+Files(2) = "2502"
+
+Dim Types(1 To 4) As String
+Types(1) = "csv"
+Types(2) = "txt"
+Types(3) = "xls"
+Types(4) = "xlsx"
+
+' For Each sFilename In listOfFiles
+FullYear = 2013
+YearCt = 13
+MonthCt = 1
+currRow = 1
+StateAbbrev = "TN"
+State = "Tennessee"
+
+' are there single files or multiple?
+singleFiles = False
+xlsx = False
+
+Application.DisplayAlerts = False
+
+For FullYear = 2013 To 2016
+    For MonthCt = 1 To 12
+
+        If MonthCt < 10 Then
+            MonthStr = "0" + CStr(MonthCt)
+        Else
+            MonthStr = CStr(MonthCt)
+        End If
+        
+        'if its in the StateAbrev_BRE1601 format uncomment
+        'Files(UBound(Files)) = StateAbbrev + "_BRE" + CStr(YearCt) + MonthStr
+        
+        For Each file In Files
+            filenamePref = "D:\Users\MAsistio\Downloads\" + State + "\" + CStr(FullYear) + "\" + CStr(YearCt) + MonthStr + "\" + file
+            sFilename = filenamePref + ".txt"
+            Debug.Print sFilename
+            Set currB = ThisWorkbook
+            
+
+            If Dir(sFilename) <> "" Then
+                
+                'Set wb = Workbooks.Open(sFilename)
+                
+                 'if text
+                Workbooks.OpenText Filename:=sFilename, DataType:=xlDelimited, Tab:=True
+                Set wb = ActiveWorkbook
+                
+                Call findAndReplace(wb)
+
+                wb.Worksheets(1).Range("A1:AL1").Copy
+                currB.Sheets(1).Range("B" + CStr(currRow)).PasteSpecial
+                currB.Sheets(1).Range("A" + CStr(currRow)).Value = CStr(YearCt) + MonthStr + "-" + file
+
+                wb.Worksheets(1).Cells.NumberFormat = "@"
+
+                
+                If xlsx Then
+                    wb.Close SaveChanges:=True
+                Else
+                    
+                    wb.SaveAs Filename:=filenamePref + ".xlsx", FileFormat:=xlOpenXMLWorkbook
+                    wb.Close
+                    
+                End If
+            
+            Else
+                currB.Sheets(1).Range("A" + CStr(currRow)).Value = CStr(YearCt) + MonthStr + "-" + file
+'                currB.Sheets(1).Range("B" + CStr(currRow)).Value = "Not Found"
+            End If
+
+            currRow = currRow + 1
+        Next file
+    
+   Next MonthCt
+    YearCt = YearCt + 1
+Next FullYear
+    Application.DisplayAlerts = True
+    MsgBox "done"
+'Next
+End Sub
+
+Sub findAndReplace(wb As Workbook)
+
+wb.Worksheets(1).Cells.Replace What:="  ", Replacement:=" "
+wb.Worksheets(1).Cells.Replace What:="""", Replacement:=""
+wb.Worksheets(1).Cells.Replace What:="=", Replacement:=""
+wb.Worksheets(1).Cells.Replace What:=".", Replacement:=""
+wb.Worksheets(1).Cells.Replace What:=",", Replacement:=""
+wb.Worksheets(1).Cells.Replace What:="'", Replacement:=""
+
+End Sub
+
+
+
+

@@ -1,0 +1,201 @@
+Option Compare Database
+Public State As String
+Public StateAbbrv As String
+
+Public Sub import()
+
+Dim impName, destName, changeCol, filenameYear, filenameBase, filename, filepref As String
+Dim indvType, currFile, withx, nox As String
+Dim yrAbrv, Year, month, spreadType, typesCt As Integer
+Dim types() As String
+
+State = "Nevada"
+StateAbbrv = "NV"
+
+' Possible types if files split into different types
+types = Split("Brokers,Broker,Sales,BrokerSales,BusinessBroker,", ",")
+typesCt = UBound(types) + 1
+
+' File Address
+filepref = "D:\Users\MAsistio\Downloads\" + State + "\"
+
+' Name of destination table
+destName = State
+
+' Turns off messages
+DoCmd.SetWarnings False
+
+' Loops through years 2013 to 2016 and months 1 to 12
+yrAbrv = 15
+For Year = 2015 To 2015
+    For month = 4 To 4
+            
+        ' Creates the name for each file
+        If month < 10 Then
+            filenameYear = CStr(yrAbrv) + "0" + CStr(month)
+        Else
+            filenameYear = CStr(yrAbrv) + CStr(month)
+        End If
+        
+        ' Creates the address for each file
+        filenameBase = filepref + CStr(Year) + "\" + CStr(filenameYear) + "\"
+        
+  
+         ' check if file exists first
+         types(UBound(types)) = StateAbbrv + "_BRE" + CStr(filenameYear)
+         
+         ' verifies if file exists
+        For typeInd = 0 To UBound(types)
+            If InStr(1, types(typeInd), "Broker", 1) Then
+                indvType = "Broker"
+            Else
+                indvType = "Salesperson"
+            End If
+            
+            nox = filenameBase + types(typeInd) + ".xlsx"
+            withx = nox
+            currFile = ""
+            
+            Debug.Print "nox" + nox
+        
+            If Len(Dir(nox)) <> 0 Then
+                currFile = nox
+                spreadType = 10
+
+            ElseIf Len(Dir(withx)) <> 0 Then
+                currFile = withx
+                spreadType = 10
+                
+            Else
+               ' Debug.Print nox
+                
+            End If
+
+            If currFile <> "" Then
+                'for xlsx files
+                'DoCmd.TransferSpreadsheet acLink, 10, destName, currFile, True
+                
+                'for xls files
+                Debug.Print currFile
+                
+                'mods start here TO SKIP FIRST ROW
+'                Set xlobj = GetObject(currFile)
+'                Set wsobj = xlobj.Worksheets(1)
+'                Set rngObj = wsobj.usedrange
+'                'uses 2nd row as header
+'                Set rngObj = rngObj.Offset(1, 0).Resize(rngObj.Rows.Count - 1, _
+'                                               rngObj.Columns.Count)
+'                rngObj.Name = "RangeName"
+                
+'                DoCmd.TransferSpreadsheet acLink, 8, destName, currFile, True, "RangeName"
+                
+'                Set xlobj = Nothing
+                
+                DoCmd.TransferSpreadsheet acLink, 8, destName, currFile, True
+                
+                changeCol = sqlStr(destName, indvType, month, Year)
+                DoCmd.RunSQL changeCol
+                DoCmd.DeleteObject acTable, destName
+            
+            End If
+            
+                
+        Next typeInd
+      
+    Next month
+    yrAbrv = yrAbrv + 1
+Next Year
+DoCmd.SetWarnings True
+MsgBox "Done"
+
+End Sub
+
+
+Public Function sqlStr(ByVal table As String, ByVal indvType As String, ByVal month As String, ByVal yr As String) As String
+    'TEST THIS
+
+    Dim finalFields() As String
+    Dim fields
+    Dim CoName() As String
+    Dim Address() As String
+    Dim City() As String
+    Dim PhysState() As String
+    Dim Zip() As String
+    Dim EffDate() As String
+    Dim ExpDate() As String
+    Dim Phone() As String
+    
+   ' Dim CoName(), Address(), City(), State(), Zip(), EffDate(), ExpDate(), Phone() As String
+
+    CoName = Split("[Company],[Office Name]", ",")
+    Address = Split("[Address],[Office Address]", ",")
+    City = Split("[City]", ",")
+    PhysState = Split("[State],[STATECODE]", ",")
+    Zip = Split("[Zip Code],[ZipCode]", ",")
+    EffDate = Split("[]", ",")
+    ExpDate = Split("[Expiration Date]", ",")
+    Phone = Split("[]", ",")
+    License = Split("[License No],[Credential],[License Number]", ",")
+    RelatedLic = Split("[]", ",")
+    LicenseType = Split("[]", ",")
+    FirstName = Split("[]", ",")
+    LastName = Split("[Name],[Contact],[Licensee Name]", ",")
+    Email = Split("[]", ",")
+    
+    fields = Array(CoName, Address, City, PhysState, Zip, EffDate, ExpDate, Phone, License, RelatedLic, LicenseType, _
+    FirstName, LastName, Email)
+    finalFields = Split("'','','','','','','','','','','','','',''", ",")
+    
+    For Field = 0 To UBound(fields)
+        For Index = 0 To UBound(fields(Field))
+            
+            Debug.Print fields(Field)(Index) & " " & FieldExists(fields(Field)(Index), table)
+           
+            If FieldExists(fields(Field)(Index), table) = True Then
+                finalFields(Field) = "[" & State & "]." & fields(Field)(Index)
+                Exit For
+            End If
+            
+        Next Index
+    Next Field
+    
+    ' use indvType in license type if multiple files, otherwise finalFields(10)
+    
+    sqlStr = "INSERT INTO NewTable ( [License Number], [Related License Number], [Profession Type], [License State], " _
+    & "[First Name], [Last Name], [Company Name], [License Type], Entity, [Physical Address], [Physical City], " _
+    & "[Physical State], [Physical Zip], [License Effective Date], [License Expiration Date], [Relationship Start Date], " _
+    & "[Relationship End Date], Phone, Email )" _
+    & " SELECT " & finalFields(8) & " AS [License Number], " & finalFields(9) & " AS [Related License Number], 'Real Estate' AS [Profession Type], " _
+    & "'" & State & "' AS [License State], " & finalFields(11) & " AS [First Name], " & finalFields(12) & " AS [Last Name], " & finalFields(0) & " AS [Company Name], '" & indvType & "' AS [License Type], " _
+    & "'' AS Entity, " & finalFields(1) & " AS [Physical Address], " & finalFields(2) & " AS [Physical City], " _
+    & finalFields(3) & " AS [Physical State], CStr(" & finalFields(4) & ") AS [Physical Zip], " _
+    & "CStr(" & finalFields(5) & ") AS [License Effective Date], CStr(" & finalFields(6) & ") AS [License Expiration Date], " _
+    & "'" & month & "/1/" & yr & "' AS [Relationship Start Date], '" & month & "/1/" & yr & "' AS [Relationship End Date], " _
+    & "CStr(" & finalFields(7) & ") AS Phone, " & finalFields(13) & " AS Email FROM [" & State & "];"
+    
+    Debug.Print sqlStr
+    
+            
+End Function
+Public Function FieldExists(ByVal fieldName As String, ByVal tableName As String) As Boolean
+Dim nLen As Long
+
+On Error GoTo Failed
+With DBEngine(0)(0).TableDefs(tableName)
+.fields.Refresh
+nLen = Len(.fields(fieldName).Name)
+
+If nLen > 0 Then FieldExists = True
+
+End With
+Exit Function
+Failed:
+If Err.Number = 3265 Then Err.Clear ' Error 3265 : Item not found in this collection.
+FieldExists = False
+End Function
+
+
+
+
+
+
